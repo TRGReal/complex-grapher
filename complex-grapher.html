@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/12.4.0/math.js"></script>
+    <script type="text/javascript">
+		function cis(argument) {
+			return math.complex(Math.cos(argument), Math.sin(argument)); // cos + isin - javascript uses radians by default.
+		}
+		
+		math.import({
+			cis
+		});
+
+        google.charts.load("current", {packages:["corechart"]});
+        google.charts.setOnLoadCallback(drawChart);
+
+        var chart, options;
+
+        function drawChart() {
+
+            options = {
+                legend: 'none',
+                colors: ['#087037'],
+                pointShape: 'circle',
+                pointSize: 1,
+                hAxis: {
+                    viewWindow: {
+                        max: 10,
+                        min: -10,
+                    },
+                    title: "Re(ƶ)",
+                    titleTextStyle: {
+                        bold: true
+                    }
+                },
+                vAxis: {
+                    viewWindow: {
+                        max: 10,
+                        min: -10,
+                    },
+                    title: "Im(ƶ)",
+                    titleTextStyle: {
+                        bold: true
+                    }
+                }
+            };
+
+            chart = new google.visualization.ScatterChart(document.getElementById('argand_plane'));
+
+            // Start the animation by listening to the first 'ready' event.
+            google.visualization.events.addOneTimeListener(chart, 'ready', sketch);
+
+            sketch();
+        }
+
+        function sketch() {
+            document.getElementById("status").innerText = "Status: Rendering...";
+
+            const complexNumber = math.evaluate(document.getElementById("complex").value);
+            document.getElementById("evaluated_expression").innerText = ` = (${complexNumber.re}) + (${complexNumber.im})i`;
+
+            setTimeout(() => {
+                const data = new google.visualization.DataTable();
+
+                data.addColumn('number');
+                data.addColumn('number');
+
+                let maxValue = 0;
+
+                chart.clearChart();
+
+                for (let i = 1; i <= document.getElementById("accuracy").value; i++) {
+                    data.addRow([0, 0]);
+                }
+
+                for (let p = 0; p < document.getElementById("accuracy").value; p++) {
+                    var x = data.getValue(p, 0);
+                    var y = data.getValue(p, 1);
+
+                    const exponent = (p / document.getElementById("accuracy").value) * document.getElementById("powerRange").value;
+                    const result = math.pow(complexNumber, exponent);
+
+                    x = result.re;
+                    y = result.im;
+
+                    if (Math.abs(x) > maxValue) maxValue = Math.abs(x);
+                    if (Math.abs(y) > maxValue) maxValue = Math.abs(y);
+
+                    data.setValue(p, 0, x);
+                    data.setValue(p, 1, y);
+                }
+
+                const squareSide = maxValue * (document.getElementById("zoomRange").value / 1000);
+                const newViewWindow = {
+                    min: -squareSide,
+                    max: squareSide
+                }
+
+                options.hAxis.viewWindow = newViewWindow;
+                options.vAxis.viewWindow = newViewWindow;
+
+                chart.draw(data, options);
+
+                document.getElementById("status").innerText = "Status: Done loading.";
+            }, 20);
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap');
+
+        body {
+            font-family: "Roboto";
+        }
+
+        #argand_plane {
+            float: right;
+			outline: 5px dashed black;
+        }
+    </style>
+    </head>
+    <body>
+        <div id="argand_plane" style="width: 400px; height: 400px;"></div>
+
+        <div class="inputs">
+            <h2>Complex Number</h2>
+            <p>Radians are used by default, if you would like to use degrees, add " deg" to the end of your expression.</p>
+            <p>You can use any expression, however it must be strictly defined (e.g. "4 + 5i" is acceptable however, "isin(pi/4)" is not)</p>
+            <p>Substitute π for the word "pi".</p>
+            <input type="text" value="1 + i" id="complex" oninput="this.nextElementSibling.value = ` = (${math.evaluate(this.value).re}) (${math.evaluate(this.value).im})i`">
+            <output id="evaluated_expression"> = undefined</output>
+
+            <h2>Zoom</h2>
+            <input type="range" min="1" max="1000" value="1000" class="slider" id="zoomRange" oninput="this.nextElementSibling.value = (this.value / 10) + '%'">
+            <output></output>
+
+            <h2># of Points</h2>
+            <input type="range" min="1" max="10000" value="100" class="slider" id="accuracy" oninput="this.nextElementSibling.value = this.value">
+            <output></output>
+
+            <h2>Exponent</h2>
+            <input type="number" min="1" max="1000" value="100" class="slider" id="powerRange">
+          </div>
+
+          <br>
+          <button id="accuracy" onclick="sketch()">Render</button>
+          <p id="status">Status: Rendering...</p>
+    </body>
+</html>
